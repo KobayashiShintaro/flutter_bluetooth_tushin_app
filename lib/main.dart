@@ -33,12 +33,20 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+  final _flutterReactiveBle = FlutterReactiveBle();
 
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
+  StreamSubscription<List<ScanResult>> _scanSubscription;
+  List<ScanResult> _scanResults = [];
+
+  void startScan() {
+    _scanSubscription =
+        _flutterReactiveBle.scanForDevices(withServices: []).listen(
+      (scanResult) {
+        setState(() {
+          _scanResults.add(scanResult);
+        });
+      },
+    );
   }
 
   @override
@@ -47,25 +55,40 @@ class _MyHomePageState extends State<MyHomePage> {
       appBar: AppBar(
         title: Text(widget.title),
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
-            ),
-          ],
+      body: Container(
+        height: 300.0,
+        child: ListView.builder(
+          itemCount: _scanResults.length,
+          itemBuilder: (BuildContext context, int index) {
+            final scanResult = _scanResults[index];
+            return ListTile(
+              title: Text(scanResult.device.name ?? "Unknown"),
+              subtitle: Text(scanResult.device.id.toString()),
+              onTap: () {
+                connectToDevice(scanResult.device.id);
+              },
+            );
+          },
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
+  }
+
+  void connectToDevice(Uuid deviceId) async {
+    _scanSubscription?.cancel();
+
+    final deviceConnection = _flutterReactiveBle.connectToDevice(
+      id: deviceId,
+      connectionTimeout: const Duration(seconds: 10),
+    );
+
+    final deviceServices = deviceConnection
+        .flatMap(
+            (connection) => connection.discoverAllServicesAndCharacteristics())
+        .asBroadcastStream();
+
+    deviceServices.listen((event) {
+      // サービスを読み取る処理
+    });
   }
 }
