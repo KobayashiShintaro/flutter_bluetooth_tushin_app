@@ -3,6 +3,7 @@ import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:freezed/builder.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+import 'package:async/async.dart';
 
 void main() {
   runApp(const MyApp());
@@ -38,10 +39,19 @@ class _MyHomePageState extends State<MyHomePage> {
   StreamSubscription<List<ScanResult>> _scanSubscription;
   List<ScanResult> _scanResults = [];
 
+  ScanResult _toScanResult(DiscoveredDevice device) {
+    return ScanResult(
+      device: device,
+      advertisementData: AdvertisementData(),
+      rssi: -100,
+    );
+  }
+
   void startScan() {
     _scanSubscription =
         _flutterReactiveBle.scanForDevices(withServices: []).listen(
-      (scanResult) {
+      (discoveredDevice) {
+        final scanResult = _toScanResult(discoveredDevice);
         setState(() {
           _scanResults.add(scanResult);
         });
