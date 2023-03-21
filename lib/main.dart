@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:freezed/builder.dart';
+import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+import 'package:async/async.dart';
 
 void main() {
-  runApp( const MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -12,11 +15,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'ble_tushin',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(title: 'ble通信アプリ'),
+      home: const MyHomePage(title: 'ble_tushin'),
     );
   }
 }
@@ -31,12 +34,29 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+  final _flutterReactiveBle = FlutterReactiveBle();
 
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
+  StreamSubscription<List<ScanResult>> _scanSubscription;
+  List<ScanResult> _scanResults = [];
+
+  ScanResult _toScanResult(DiscoveredDevice device) {
+    return ScanResult(
+      device: device,
+      advertisementData: AdvertisementData(),
+      rssi: -100,
+    );
+  }
+
+  void startScan() {
+    _scanSubscription =
+        _flutterReactiveBle.scanForDevices(withServices: []).listen(
+      (discoveredDevice) {
+        final scanResult = _toScanResult(discoveredDevice);
+        setState(() {
+          _scanResults.add(scanResult);
+        });
+      },
+    );
   }
 
   @override
@@ -45,25 +65,40 @@ class _MyHomePageState extends State<MyHomePage> {
       appBar: AppBar(
         title: Text(widget.title),
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
-            ),
-          ],
+      body: Container(
+        height: 300.0,
+        child: ListView.builder(
+          itemCount: _scanResults.length,
+          itemBuilder: (BuildContext context, int index) {
+            final scanResult = _scanResults[index];
+            return ListTile(
+              title: Text(scanResult.device.name ?? "Unknown"),
+              subtitle: Text(scanResult.device.id.toString()),
+              onTap: () {
+                connectToDevice(scanResult.device.id);
+              },
+            );
+          },
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
+  }
+
+  void connectToDevice(Uuid deviceId) async {
+    _scanSubscription?.cancel();
+
+    final deviceConnection = _flutterReactiveBle.connectToDevice(
+      id: deviceId,
+      connectionTimeout: const Duration(seconds: 10),
+    );
+
+    final deviceServices = deviceConnection
+        .flatMap(
+            (connection) => connection.discoverAllServicesAndCharacteristics())
+        .asBroadcastStream();
+
+    deviceServices.listen((event) {
+      // サービスを読み取る処理
+    });
   }
 }
