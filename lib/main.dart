@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:freezed/builder.dart';
-import  'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:async/async.dart';
 
 void main() {
@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: DeviceListWidget(title: 'ble_tushin'),
+      home: DeviceListWidget(),
     );
   }
 }
@@ -28,17 +28,18 @@ class BluetoothService {
   late FlutterReactiveBle _ble;
 
   BluetoothService() {
-     _ble = FlutterReactiveBle();
+    _ble = FlutterReactiveBle();
   }
 
-  Stream<List<DiscoveredDevice>> scanForDevices({Duration scanTimeout= const Duration(seconds: 10)}) {
-  return _ble.scanForDevices(
-    withServices: [],
-    scanMode: ScanMode.balanced,
-    requireLocationServicesEnabled: true,
-    // 10秒スキャン
-  ).map((devices) => [devices]);
-}
+  Stream<List<DiscoveredDevice>> scanForDevices(
+      {Duration scanTimeout = const Duration(seconds: 10)}) {
+    return _ble.scanForDevices(
+      withServices: [],
+      scanMode: ScanMode.balanced,
+      requireLocationServicesEnabled: true,
+      // 10秒スキャン
+    ).map((devices) => [devices]);
+  }
 
   Future<List<BluetoothService>> getServices(String deviceId) async {
     final connectedDevice = await _ble.connectToDevice(id: deviceId).first;
@@ -47,7 +48,7 @@ class BluetoothService {
 }
 
 class DeviceListWidget extends StatefulWidget {
-   const DeviceListWidget({Key? key, required this.title}) : super(key: key);
+  const DeviceListWidget({Key? key}) : super(key: key);
   @override
   _DeviceListWidgetState createState() => _DeviceListWidgetState();
 }
@@ -56,7 +57,7 @@ class _DeviceListWidgetState extends State<DeviceListWidget> {
   final _bluetoothService = BluetoothService();
 
   List<DiscoveredDevice> _devices = [];
-  DiscoveredDevice _selectedDevice;
+  DiscoveredDevice? _selectedDevice;
 
   @override
   void initState() {
@@ -97,15 +98,16 @@ class _DeviceListWidgetState extends State<DeviceListWidget> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Device List')),
-      body: ListView.builder(
-        itemCount: _devices.length,
-        itemBuilder: (BuildContext context, int index) {
-          final device = _devices[index];
-          return ListTile(
-            title: Text(device.name),
-            subtitle: Text(device.id),
-            onTap: () => _onDeviceSelected(device),
-          );
-        }));
-        }
+        appBar: AppBar(title: Text('Device List')),
+        body: ListView.builder(
+            itemCount: _devices.length,
+            itemBuilder: (BuildContext context, int index) {
+              final device = _devices[index];
+              return ListTile(
+                title: Text(device.name),
+                subtitle: Text(device.id),
+                onTap: () => _onDeviceSelected(device),
+              );
+            }));
+  }
+}
