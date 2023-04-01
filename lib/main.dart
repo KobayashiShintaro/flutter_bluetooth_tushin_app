@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:hooks_riverpod/hooks_riverpod.dart';
 import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:freezed/builder.dart';
+import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+import 'package:async/async.dart';
 
 void main() {
-  runApp( const MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -12,58 +15,103 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'ble_tushin',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(title: 'ble通信アプリ'),
+      home: DeviceListWidget(),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({Key? key, required this.title}) : super(key: key);
+class BluetoothService {
+  late FlutterReactiveBle _ble;
 
-  final String title;
+  BluetoothService() {
+    _ble = FlutterReactiveBle();
+  }
 
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  Stream<List<DiscoveredDevice>> scanForDevices(
+      {Duration scanTimeout = const Duration(seconds: 10)}) {
+    return _ble.scanForDevices(
+      withServices: [],
+      scanMode: ScanMode.balanced,
+      requireLocationServicesEnabled: true,
+      // 10秒スキャン
+    ).map((devices) => [devices]);
+  }
+
+  Future<List<DiscoveredService>> discoverServices(String deviceId) =>
+      _ble.discoverServices(deviceId);
+
+  Future<List<BluetoothService>> getServices(String deviceId) async {
+    final connectedDevice = await _ble.connectToDevice(id: deviceId).first;
+    final services = await _ble.discoverServices(deviceId);
+    return [services];
+  }
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class DeviceListWidget extends StatefulWidget {
+  const DeviceListWidget({Key? key}) : super(key: key);
+  @override
+  _DeviceListWidgetState createState() => _DeviceListWidgetState();
+}
 
-  void _incrementCounter() {
+class _DeviceListWidgetState extends State<DeviceListWidget> {
+  final _bluetoothService = BluetoothService();
+
+  List<DiscoveredDevice> _devices = [];
+  DiscoveredDevice? _selectedDevice;
+
+  @override
+  void initState() {
+    super.initState();
+    _startScan();
+  }
+
+  @override
+  void dispose() {
+    _stopScan();
+    super.dispose();
+  }
+
+  void _startScan() {
+    _bluetoothService.scanForDevices().listen((devices) {
+      setState(() {
+        _devices = devices;
+      });
+    });
+  }
+
+  void _stopScan() {
+    _bluetoothService.scanForDevices().first.then((_) {
+      _devices.clear();
+      setState(() {});
+    });
+  }
+
+  Future<void> _onDeviceSelected(DiscoveredDevice device) async {
+    final services = await _bluetoothService.getServices(device.id);
     setState(() {
-      _counter++;
+      _selectedDevice = device;
+      // 選択したデバイスのサービスを表示
+      print(services);
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
-    );
+        appBar: AppBar(title: Text('Device List')),
+        body: ListView.builder(
+            itemCount: _devices.length,
+            itemBuilder: (BuildContext context, int index) {
+              final device = _devices[index];
+              return ListTile(
+                title: Text(device.name),
+                subtitle: Text(device.id),
+                onTap: () => _onDeviceSelected(device),
+              );
+            }));
   }
 }
