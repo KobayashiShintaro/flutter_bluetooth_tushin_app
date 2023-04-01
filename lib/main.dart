@@ -26,9 +26,11 @@ class MyApp extends StatelessWidget {
 
 class BluetoothService {
   late FlutterReactiveBle _ble;
+  late ConnectedDevice _connectedDeviceOperator;
 
   BluetoothService() {
     _ble = FlutterReactiveBle();
+    _connectedDeviceOperator = _ble.connectedDevice;
   }
 
   Stream<List<DiscoveredDevice>> scanForDevices(
@@ -40,6 +42,9 @@ class BluetoothService {
       // 10秒スキャン
     ).map((devices) => [devices]);
   }
+
+  Future<List<DiscoveredService>> discoverServices(String deviceId) =>
+      _connectedDeviceOperator.discoverServices(deviceId);
 
   Future<List<BluetoothService>> getServices(String deviceId) async {
     final connectedDevice = await _ble.connectToDevice(id: deviceId).first;
