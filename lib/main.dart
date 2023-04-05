@@ -18,7 +18,37 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Container(),
+      body: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey, // background
+                foregroundColor: Colors.white, // foreground
+              ),
+              onPressed: () {},
+              child: const Icon(Icons.search),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey, // background
+                foregroundColor: Colors.white, // foreground
+              ),
+              onPressed: () {},
+              child: const Icon(Icons.bluetooth),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey, // background
+                foregroundColor: Colors.white, // foreground
+              ),
+              onPressed: () {},
+              child: const Icon(Icons.celebration_rounded),
+            ),
+          ])
+        ],
+      ),
     );
   }
 }
