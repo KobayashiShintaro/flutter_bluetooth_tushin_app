@@ -35,6 +35,7 @@ class _DeviceList extends StatefulWidget {
   final BleScannerState scannerState;
   final void Function(List<Uuid>) startScan;
   final VoidCallback stopScan;
+  final BleDeviceConnector deviceConnector;
   @override
   __DeviceListState createState() => __DeviceListState();
 }
