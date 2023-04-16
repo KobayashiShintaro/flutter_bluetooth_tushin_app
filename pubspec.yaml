@@ -40,6 +40,7 @@ dependencies:
   provider: ^6.0.5
   flutter_reactive_ble: ^5.0.3
   intl: ^0.18.0
+  location_permissions: ^4.0.0
 
 dev_dependencies:
   flutter_test:
