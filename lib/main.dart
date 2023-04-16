@@ -1,69 +1,86 @@
 import 'package:flutter/material.dart';
-import 'package:hooks_riverpod/hooks_riverpod.dart';
-import 'package:flutter_hooks/flutter_hooks.dart';
+import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
+import 'package:flutter_bluetooth_tushin_app/src/ble/ble_device_connector.dart';
+import 'package:flutter_bluetooth_tushin_app/src/ble/ble_device_interactor.dart';
+import 'package:flutter_bluetooth_tushin_app/src/ble/ble_scanner.dart';
+import 'package:flutter_bluetooth_tushin_app/src/ble/ble_status_monitor.dart';
+import 'package:flutter_bluetooth_tushin_app/src/ui/ble_status_screen.dart';
+import 'package:flutter_bluetooth_tushin_app/src/ui/device_list.dart';
+import 'package:provider/provider.dart';
+import 'src/ble/ble_logger.dart';
+
+const _themeColor = Colors.lightGreen;
 
 void main() {
-  runApp( const MyApp());
-}
+  WidgetsFlutterBinding.ensureInitialized();
 
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-      ),
-      home: const MyHomePage(title: 'ble通信アプリ'),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({Key? key, required this.title}) : super(key: key);
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      _counter++;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
-            ),
-          ],
+  final _ble = FlutterReactiveBle();
+  final _bleLogger = BleLogger(ble: _ble);
+  final _scanner = BleScanner(ble: _ble, logMessage: _bleLogger.addToLog);
+  final _monitor = BleStatusMonitor(_ble);
+  final _connector = BleDeviceConnector(
+    ble: _ble,
+    logMessage: _bleLogger.addToLog,
+  );
+  final _serviceDiscoverer = BleDeviceInteractor(
+    bleDiscoverServices: _ble.discoverServices,
+    readCharacteristic: _ble.readCharacteristic,
+    writeWithResponse: _ble.writeCharacteristicWithResponse,
+    writeWithOutResponse: _ble.writeCharacteristicWithoutResponse,
+    subscribeToCharacteristic: _ble.subscribeToCharacteristic,
+    logMessage: _bleLogger.addToLog,
+  );
+  runApp(
+    MultiProvider(
+      providers: [
+        Provider.value(value: _scanner),
+        Provider.value(value: _monitor),
+        Provider.value(value: _connector),
+        Provider.value(value: _serviceDiscoverer),
+        Provider.value(value: _bleLogger),
+        StreamProvider<BleScannerState?>(
+          create: (_) => _scanner.state,
+          initialData: const BleScannerState(
+            discoveredDevices: [],
+            scanIsInProgress: false,
+          ),
         ),
+        StreamProvider<BleStatus?>(
+          create: (_) => _monitor.state,
+          initialData: BleStatus.unknown,
+        ),
+        StreamProvider<ConnectionStateUpdate>(
+          create: (_) => _connector.state,
+          initialData: const ConnectionStateUpdate(
+            deviceId: 'Unknown device',
+            connectionState: DeviceConnectionState.disconnected,
+            failure: null,
+          ),
+        ),
+      ],
+      child: MaterialApp(
+        title: 'Flutter Reactive BLE example',
+        color: _themeColor,
+        theme: ThemeData(primarySwatch: _themeColor),
+        home: const HomeScreen(),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
-    );
-  }
+    ),
+  );
+}
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({
+    Key? key,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) => Consumer<BleStatus?>(
+        builder: (_, status, __) {
+          if (status == BleStatus.ready) {
+            return const DeviceListScreen();
+          } else {
+            return BleStatusScreen(status: status ?? BleStatus.unknown);
+          }
+        },
+      );
 }
